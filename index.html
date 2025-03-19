@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Remote Control</title>
+    <style>
+        #screen { max-width: 100%; cursor: crosshair; }
+        #controls { margin-top: 10px; }
+    </style>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+    <img id="screen" src="">
+    <div id="controls">
+        <input type="text" id="text" placeholder="Текст для ввода">
+        <button onclick="typeText()">Ввести текст</button>
+        <input type="text" id="key" placeholder="Клавиша (enter, space...)">
+        <button onclick="pressKey()">Нажать клавишу</button>
+    </div>
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        const screen = document.getElementById('screen');
+        let isStreaming = false;
+
+        screen.addEventListener('mousemove', (e) => {
+            const rect = screen.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) * (screen.naturalWidth / rect.width));
+            const y = Math.round((e.clientY - rect.top) * (screen.naturalHeight / rect.height));
+            if (isStreaming) {
+                tg.sendData(JSON.stringify({ type: 'move', x, y }));
+            }
+        });
+
+        screen.addEventListener('click', (e) => {
+            const rect = screen.getBoundingClientRect();
+            const x = Math.round((e.clientX - rect.left) * (screen.naturalWidth / rect.width));
+            const y = Math.round((e.clientY - rect.top) * (screen.naturalHeight / rect.height));
+            tg.sendData(JSON.stringify({ type: 'click', x, y }));
+        });
+
+        function typeText() {
+            const text = document.getElementById('text').value;
+            if (text) {
+                tg.sendData(JSON.stringify({ type: 'type', text }));
+            }
+        }
+
+        function pressKey() {
+            const key = document.getElementById('key').value;
+            if (key) {
+                tg.sendData(JSON.stringify({ type: 'press', key }));
+            }
+        }
+
+        tg.onEvent('mainButtonClicked', () => {
+            if (!isStreaming) {
+                tg.sendData(JSON.stringify({ type: 'start_stream' }));
+                tg.MainButton.setText('Остановить поток');
+                isStreaming = true;
+            } else {
+                tg.sendData(JSON.stringify({ type: 'stop_stream' }));
+                tg.MainButton.setText('Начать поток');
+                isStreaming = false;
+            }
+        });
+
+        tg.MainButton.setText('Начать поток');
+        tg.MainButton.show();
+
+        tg.onEvent('message', (msg) => {
+            if (msg.photo) {
+                screen.src = msg.photo[msg.photo.length - 1].file_url;
+            }
+        });
+    </script>
+</body>
+</html>
